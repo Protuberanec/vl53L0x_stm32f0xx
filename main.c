@@ -57,25 +57,99 @@ SOFTWARE.
 #define VL53L0X_REG_RESULT_INTERRUPT_STATUS         0x13
 #define VL53L0X_REG_RESULT_RANGE_STATUS             0x01
 
+#define VL53L0X_DEVICEMODE_SINGLE_RANGING			0
+#define VL53L0X_DEVICEMODE_CONTINUOUS_RANGING		1
+#define VL53L0X_DEVICEMODE_SINGLE_HISTOGRAM			2
+#define VL53L0X_DEVICEMODE_CONTINUOUS_TIMED_RANGING	3
 
-void init_vl53l0x() {
+#define VL53L0X_REG_SYSRANGE_MODE_START_STOP	0x01
+
+
+
+
+void vl53L0x_init() {
 	i2c1_init();
 
-//	CLEAR_XSHUT();
-//	for (int i = 0; i < 10000; i++);
+	CLEAR_XSHUT();
+	for (int i = 0; i < 10000; i++);
 	SET_XSHUT();
 	for (int i = 0; i < 10000; i++);
 	i2c1_sendByte(VL53L0x_add, VL53L0X_REG_IDENTIFICATION_MODEL_ID);
 	uint8_t temp_data[8];
-	i2c1_get(VL53L0x_add, temp_data, 2);
+	i2c1_get(VL53L0x_add, temp_data, 8);
 }
+void vl53L0x_writeReg(uint8_t reg, uint8_t data) {
+	uint8_t temp_data[2] = {reg, data};
+	i2c1_send_str(VL53L0x_add, temp_data, 2);
+}
+
+void vl53L0x_readReg(uint8_t reg, uint8_t *data, uint8_t size) {
+	i2c1_sendByte(VL53L0x_add, reg);
+	i2c1_get(VL53L0x_add, data, size);
+}
+
+uint8_t data_range[14];
+void vl53L0x_startMeas() {
+//unknown meaning register...
+	vl53L0x_writeReg(0x80, 0x01);
+	vl53L0x_writeReg(0xFF, 0x01);
+	vl53L0x_writeReg(0x00, 0x00);
+	vl53L0x_writeReg(0x91, 0x01);	//PALDevDataGet(Dev, StopVariable));
+	vl53L0x_writeReg(0x00, 0x01);
+	vl53L0x_writeReg(0xFF, 0x00);
+	vl53L0x_writeReg(0x80, 0x00);
+
+	//possible modes
+//VL53L0X_DEVICEMODE_SINGLE_RANGING
+	vl53L0x_writeReg(VL53L0X_DEVICEMODE_SINGLE_RANGING, 0x01);
+	vl53L0x_writeReg(VL53L0X_REG_SYSRANGE_START, 0x01);
+//VL53L0X_DEVICEMODE_CONTINUOUS_RANGING
+//VL53L0X_DEVICEMODE_CONTINUOUS_TIMED_RANGING
+
+	//read any unknown...
+	uint8_t temp;
+	uint32_t loop = 0;
+	do {
+		if (loop > 0) {
+			vl53L0x_readReg(VL53L0X_REG_SYSRANGE_START, &temp, 1);
+		}
+		++loop;
+		if (loop > 10000) {
+			break;
+		}
+	}while ((temp & VL53L0X_REG_SYSRANGE_MODE_START_STOP) == VL53L0X_REG_SYSRANGE_MODE_START_STOP);
+
+
+	temp = 0;
+	loop = 0;
+	do {
+		vl53L0x_readReg(VL53L0X_REG_RESULT_RANGE_STATUS, &temp, 1);
+		++loop;
+	}while (((temp & 0x01) == 0x00) || loop > 10000);
+
+
+	vl53L0x_readReg(0x14, data_range, 14);
+	return;
+}
+
+
 
 
 int main(void)
 {
+	uint8_t temp_data[4];
+	vl53L0x_init();
 
-	init_vl53l0x();
+//	i2c1_sendByte(VL53L0x_add, VL53L0X_REG_SYSRANGE_START);
+//
+//
+//	i2c1_sendByte(VL53L0x_add, VL53L0X_REG_RESULT_RANGE_STATUS);
+//	i2c1_get(VL53L0x_add, temp_data, 4);
+
+	vl53L0x_startMeas();
+
 	while(1) {
-
+		for (int i = 0; i < 100000; i++);
+		vl53L0x_startMeas();
 	}
 }

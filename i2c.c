@@ -46,10 +46,21 @@ void i2c1_init() {
 }
 
 void i2c1_sendByte(uint8_t addr, uint8_t byte) {
-	while((I2C1->ISR & I2C_ISR_BUSY) == I2C_ISR_BUSY);
+	int count = 0;
+	while((I2C1->ISR & I2C_ISR_BUSY) == I2C_ISR_BUSY) {
+		count++;
+		if (count > 100000) {
+			return;
+		}
+	}
 //	for (uint8_t i = 0; i < size; i++)
 	{
-		while((I2C1->ISR & I2C_ISR_TXE) != I2C_ISR_TXE);
+		count++;
+		while((I2C1->ISR & I2C_ISR_TXE) != I2C_ISR_TXE) {
+			count++;
+			if (count > 100000)
+				return 0;
+		}
 		I2C1->CR2 = I2C_CR2_AUTOEND | addr << 1 | 1 << 16;
 		I2C1->CR2 |= I2C_CR2_START;
 		I2C1->TXDR = byte;
@@ -58,13 +69,18 @@ void i2c1_sendByte(uint8_t addr, uint8_t byte) {
 }
 
 void i2c1_send_str(uint8_t addr, uint8_t *data, uint8_t size) {
+	int temp = 0;
 	while((I2C1->ISR & I2C_ISR_BUSY) == I2C_ISR_BUSY);
 	I2C1->CR2 = I2C_CR2_AUTOEND | addr << 1 | size << 16;
 	I2C1->CR2 |= I2C_CR2_START;
 
 	for (uint8_t i = 0; i < size; i++)
 	{
-		while((I2C1->ISR & I2C_ISR_TXE) != I2C_ISR_TXE);
+		while((I2C1->ISR & I2C_ISR_TXE) != I2C_ISR_TXE) {
+			if (temp++ > 10000) {
+				return;
+			}
+		}
 		I2C1->TXDR = data[i];
 	}
 }
@@ -77,10 +93,14 @@ void i2c1_get(uint8_t addr, uint8_t *data, uint8_t size) {
 	I2C1->CR2 = I2C_CR2_AUTOEND | addr << 1 | size << 16 | I2C_CR2_RD_WRN;
 	I2C1->CR2 |= I2C_CR2_START;
 
+	int temp = 0;
 	for (uint8_t i = 0; i < size;)
 	{
 		if ((I2C1->ISR & I2C_ISR_RXNE) == I2C_ISR_RXNE) {
 			data[i++] = I2C1->RXDR;
+		}
+		else if (temp++ > 10000){
+			return;
 		}
 	}
 }
