@@ -46,7 +46,8 @@ SOFTWARE.
 */
 
 
-#define VL53L0x_add 0x52 //IIC device address of VL53L0x
+//#define VL53L0x_add 0x52 //IIC device address of VL53L0x
+#define VL53L0x_add 0x29 //my
 
 #define VL53L0X_REG_IDENTIFICATION_MODEL_ID         0xc0
 #define VL53L0X_REG_IDENTIFICATION_REVISION_ID      0xc2
@@ -60,10 +61,10 @@ SOFTWARE.
 void init_vl53l0x() {
 	i2c1_init();
 
-	CLEAR_XSHUT();
-	for (int i = 0; i < 10000; i++);
+//	CLEAR_XSHUT();
+//	for (int i = 0; i < 10000; i++);
 	SET_XSHUT();
-	for (int i = 0; i < 50000; i++);
+	for (int i = 0; i < 10000; i++);
 	i2c1_sendByte(VL53L0x_add, VL53L0X_REG_IDENTIFICATION_MODEL_ID);
 	uint8_t temp_data[8];
 	i2c1_get(VL53L0x_add, temp_data, 2);
