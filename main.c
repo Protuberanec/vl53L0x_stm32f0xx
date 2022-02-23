@@ -41,11 +41,12 @@ void initial (void)																																{
 	RCC->AHBENR  |= RCC_AHBENR_GPIOCEN; 								//
 	GPIOC->MODER |= GPIO_MODER_MODER8_0;								//Pb0-Out
 //------------I2C1---------------------
-	RCC->AHBENR 		|=RCC_AHBENR_GPIOFEN;
-	GPIOF->MODER 		|=GPIO_MODER_MODER0_1 		| GPIO_MODER_MODER1_1; 							// Alt -mode /Pf0 - SDA, Pf1- SCL
-	GPIOF->OSPEEDR 	|=GPIO_OSPEEDER_OSPEEDR0 	| GPIO_OSPEEDER_OSPEEDR1;
-	GPIOF->OTYPER		|=GPIO_OTYPER_OT_0 				| GPIO_OTYPER_OT_1;
-	GPIOF->AFR[0] 	|=(1<<GPIO_AFRL_AFRL0_Pos) |(1<<GPIO_AFRL_AFRL1_Pos);  				// I2C - Alternative
+	RCC->AHBENR |= RCC_AHBENR_GPIOBEN;
+	GPIOB->MODER |= GPIO_MODER_MODER6_1 /*scl*/ | GPIO_MODER_MODER7_1 /*sda*/;
+	GPIOB->AFR[0] |= (1 << 24) | (1 << 28);	//for pb6,pb7 - af1
+
+	GPIOB->MODER |= GPIO_MODER_MODER4_0;	//output...
+	GPIOB->MODER &= ~GPIO_MODER_MODER5;		//input interruption
 
 	RCC->APB1ENR |=RCC_APB1ENR_I2C1EN;
 #ifdef I2C_100
