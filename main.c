@@ -29,17 +29,17 @@ void delay_ms (uint16_t DelTime) 																									{
 
 void initial (void)																																{
 //---------------TIM17------------------
-  RCC->APB2ENR |= RCC_APB2ENR_TIM17EN;    																			//HSI 8 MHz - 1 msek
-  TIM17->PSC = 8000-1;
-  TIM17->ARR = 1;
-  TIM17->CR1 |= TIM_CR1_ARPE | TIM_CR1_DIR | TIM_CR1_CEN; 											//
+	RCC->APB2ENR |= RCC_APB2ENR_TIM17EN;    																			//HSI 8 MHz - 1 msek
+	TIM17->PSC = 8000-1;
+	TIM17->ARR = 1;
+	TIM17->CR1 |= TIM_CR1_ARPE | TIM_CR1_DIR | TIM_CR1_CEN; 											//
 	TIM17->DIER |=TIM_DIER_UIE;
 	NVIC_EnableIRQ (TIM17_IRQn);
 	NVIC_SetPriority(TIM17_IRQn,0x05);
 
 //-------------------GPIOB-Blinking Led
-	RCC->AHBENR  |= RCC_AHBENR_GPIOBEN; 								//
-	GPIOB->MODER |= GPIO_MODER_MODER0_0;								//Pb0-Out
+	RCC->AHBENR  |= RCC_AHBENR_GPIOCEN; 								//
+	GPIOC->MODER |= GPIO_MODER_MODER8_0;								//Pb0-Out
 //------------I2C1---------------------
 	RCC->AHBENR 		|=RCC_AHBENR_GPIOFEN;
 	GPIOF->MODER 		|=GPIO_MODER_MODER0_1 		| GPIO_MODER_MODER1_1; 							// Alt -mode /Pf0 - SDA, Pf1- SCL
@@ -75,20 +75,21 @@ void initial (void)																																{
 
 int main(void)
 {
-initial();
-delay_ms (100);
-init_VL53L0X();
+	initial();
+	delay_ms (100);
+	init_VL53L0X();
 
-while (1)  /* Main loop */
-{
- if (sec05_f)											{// Run - 1 time in second
-		sec05_f=0;
-
-    counter=VL53L0X_readRangeSingleMillimeters();
-  }
-
-} // end - main loop
+	while (1)  /* Main loop */
+	{
+		if (sec05_f)
+		{// Run - 1 time in second
+			sec05_f=0;
+			counter=VL53L0X_readRangeSingleMillimeters();
+		}
+	} // end - main loop
 } // end - Main
+
+
 #ifdef  USE_FULL_ASSERT
 void assert_failed(uint8_t* file, uint32_t line)
 { while (1)  {  } }
