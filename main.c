@@ -31,6 +31,7 @@ SOFTWARE.
 #include <stm32f0xx.h>
 
 #include "i2c.h"
+#include "vl53l0x_device.h"
 
 /* Private macro */
 /* Private variables */
@@ -47,25 +48,49 @@ SOFTWARE.
 
 
 //#define VL53L0x_add 0x52 //IIC device address of VL53L0x
-#define VL53L0x_add 0x29 //my
+#define MY_VL53L0x_add 0x29 //my
 
-#define VL53L0X_REG_IDENTIFICATION_MODEL_ID         0xc0
-#define VL53L0X_REG_IDENTIFICATION_REVISION_ID      0xc2
-#define VL53L0X_REG_PRE_RANGE_CONFIG_VCSEL_PERIOD   0x50
-#define VL53L0X_REG_FINAL_RANGE_CONFIG_VCSEL_PERIOD 0x70
-#define VL53L0X_REG_SYSRANGE_START                  0x00
-#define VL53L0X_REG_RESULT_INTERRUPT_STATUS         0x13
-#define VL53L0X_REG_RESULT_RANGE_STATUS             0x01
+typedef uint8_t bool;
+uint8_t stop_var;
+uint8_t config_cntrl;
 
-#define VL53L0X_DEVICEMODE_SINGLE_RANGING			0
-#define VL53L0X_DEVICEMODE_CONTINUOUS_RANGING		1
-#define VL53L0X_DEVICEMODE_SINGLE_HISTOGRAM			2
-#define VL53L0X_DEVICEMODE_CONTINUOUS_TIMED_RANGING	3
-
-#define VL53L0X_REG_SYSRANGE_MODE_START_STOP	0x01
-
-
-
+void VL53L0X_getSpadInfo(uint8_t* count, bool* type_is_aperture) {
+//	uint8_t tmp;
+//
+//	VL53L0X_writeReg(0x80, 0x01);
+//	VL53L0X_writeReg(0xFF, 0x01);
+//	VL53L0X_writeReg(0x00, 0x00);
+//
+//	VL53L0X_writeReg(0xFF, 0x06);
+//	VL53L0X_writeReg(0x83, VL53L0X_readReg(0x83) | 0x04);
+//	VL53L0X_writeReg(0xFF, 0x07);
+//	VL53L0X_writeReg(0x81, 0x01);
+//
+//	VL53L0X_writeReg(0x80, 0x01);
+//
+//	VL53L0X_writeReg(0x94, 0x6b);
+//	VL53L0X_writeReg(0x83, 0x00);
+//	startTimeout();
+//	while (VL53L0X_readReg(0x83) == 0x00) {
+//		if (checkTimeoutExpired()) {
+//			return false;
+//		}
+//	}
+//	VL53L0X_writeReg(0x83, 0x01);
+//	tmp = VL53L0X_readReg(0x92);
+//
+//	*count = tmp & 0x7f;
+//	*type_is_aperture = (tmp >> 7) & 0x01;
+//
+//	VL53L0X_writeReg(0x81, 0x00);
+//	VL53L0X_writeReg(0xFF, 0x06);
+//	VL53L0X_writeReg(0x83, VL53L0X_readReg(0x83 & ~0x04));
+//	VL53L0X_writeReg(0xFF, 0x01);
+//	VL53L0X_writeReg(0x00, 0x01);
+//
+//	VL53L0X_writeReg(0xFF, 0x00);
+//	VL53L0X_writeReg(0x80, 0x00);
+}
 
 void vl53L0x_init() {
 	i2c1_init();
@@ -74,62 +99,45 @@ void vl53L0x_init() {
 	for (int i = 0; i < 10000; i++);
 	SET_XSHUT();
 	for (int i = 0; i < 10000; i++);
-	i2c1_sendByte(VL53L0x_add, VL53L0X_REG_IDENTIFICATION_MODEL_ID);
+	i2c1_sendByte(MY_VL53L0x_add, VL53L0X_REG_IDENTIFICATION_MODEL_ID);
 	uint8_t temp_data[8];
-	i2c1_get(VL53L0x_add, temp_data, 8);
-}
-void vl53L0x_writeReg(uint8_t reg, uint8_t data) {
-	uint8_t temp_data[2] = {reg, data};
-	i2c1_send_str(VL53L0x_add, temp_data, 2);
-}
+	i2c1_get(MY_VL53L0x_add, temp_data, 8);
 
-void vl53L0x_readReg(uint8_t reg, uint8_t *data, uint8_t size) {
-	i2c1_sendByte(VL53L0x_add, reg);
-	i2c1_get(VL53L0x_add, data, size);
-}
-
-uint8_t data_range[14];
-void vl53L0x_startMeas() {
-//unknown meaning register...
+	vl53L0x_writeReg(0x88, 0x00);
 	vl53L0x_writeReg(0x80, 0x01);
 	vl53L0x_writeReg(0xFF, 0x01);
 	vl53L0x_writeReg(0x00, 0x00);
-	vl53L0x_writeReg(0x91, 0x01);	//PALDevDataGet(Dev, StopVariable));
+
+	vl53L0x_readReg(0x91, &stop_var, 1);
+
 	vl53L0x_writeReg(0x00, 0x01);
 	vl53L0x_writeReg(0xFF, 0x00);
 	vl53L0x_writeReg(0x80, 0x00);
 
-	//possible modes
-//VL53L0X_DEVICEMODE_SINGLE_RANGING
-	vl53L0x_writeReg(VL53L0X_DEVICEMODE_SINGLE_RANGING, 0x01);
-	vl53L0x_writeReg(VL53L0X_REG_SYSRANGE_START, 0x01);
-//VL53L0X_DEVICEMODE_CONTINUOUS_RANGING
-//VL53L0X_DEVICEMODE_CONTINUOUS_TIMED_RANGING
+	vl53L0x_readReg(VL53L0X_REG_MSRC_CONFIG_CONTROL, &config_cntrl, 1);
+	vl53L0x_writeReg(VL53L0X_REG_MSRC_CONFIG_CONTROL, config_cntrl | 0x12);
+	vl53L0x_writeReg(VL53L0X_REG_FINAL_RANGE_CONFIG_MIN_COUNT_RATE_RTN_LIMIT, (uint16_t)(0.25 * (1 << 7)));/*0.25ms*/
+	vl53L0x_writeReg(VL53L0X_REG_SYSTEM_SEQUENCE_CONFIG, 0xFF);
 
-	//read any unknown...
-	uint8_t temp;
-	uint32_t loop = 0;
-	do {
-		if (loop > 0) {
-			vl53L0x_readReg(VL53L0X_REG_SYSRANGE_START, &temp, 1);
-		}
-		++loop;
-		if (loop > 10000) {
-			break;
-		}
-	}while ((temp & VL53L0X_REG_SYSRANGE_MODE_START_STOP) == VL53L0X_REG_SYSRANGE_MODE_START_STOP);
+	uint8_t spad_count;
+	bool spad_type_is_aperture;
+	VL53L0X_getSpadInfo(&spad_count, &spad_type_is_aperture);
 
 
-	temp = 0;
-	loop = 0;
-	do {
-		vl53L0x_readReg(VL53L0X_REG_RESULT_RANGE_STATUS, &temp, 1);
-		++loop;
-	}while (((temp & 0x01) == 0x00) || loop > 10000);
+}
+void vl53L0x_writeReg(uint8_t reg, uint8_t data) {
+	uint8_t temp_data[2] = {reg, data};
+	i2c1_send_str(MY_VL53L0x_add, temp_data, 2);
+}
 
+void vl53L0x_readReg(uint8_t reg, uint8_t *data, uint8_t size) {
+	i2c1_sendByte(MY_VL53L0x_add, reg);
+	i2c1_get(MY_VL53L0x_add, data, size);
+}
 
-	vl53L0x_readReg(0x14, data_range, 14);
-	return;
+uint8_t data_range[14];
+void vl53L0x_startMeas() {
+
 }
 
 
@@ -149,7 +157,8 @@ int main(void)
 	vl53L0x_startMeas();
 
 	while(1) {
-		for (int i = 0; i < 100000; i++);
-		vl53L0x_startMeas();
+//		for (int i = 0; i < 100000; i++);
+//		vl53L0x_startMeas();
 	}
+
 }
